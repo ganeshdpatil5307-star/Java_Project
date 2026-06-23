@@ -1,6 +1,7 @@
 package com.nevtan.authservice.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -44,13 +45,20 @@ public class JwtUtil {
         return resolver.apply(parseClaims(token));
     }
 
+    /**
+     * Returns true only if the token is well-formed, correctly signed,
+     * not expired, and belongs to the given username. Any parsing problem
+     * (expired, malformed, bad signature) is treated as invalid rather than
+     * propagating an exception.
+     */
     public boolean isTokenValid(String token, String username) {
-        final String extracted = extractUsername(token);
-        return extracted.equals(username) && !isTokenExpired(token);
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractClaim(token, Claims::getExpiration).before(new Date());
+        try {
+            final Claims claims = parseClaims(token);
+            return username.equals(claims.getSubject())
+                    && claims.getExpiration().after(new Date());
+        } catch (JwtException | IllegalArgumentException ex) {
+            return false;
+        }
     }
 
     private Claims parseClaims(String token) {
